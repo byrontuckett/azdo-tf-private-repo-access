@@ -1,0 +1,34 @@
+trigger: none # Manually trigger the pipeline
+
+pool:
+  vmImage: 'ubuntu-latest'
+
+resources:
+  # https://learn.microsoft.com/en-us/azure/devops/pipelines/process/resources?view=azure-devops#repository-resource-definition
+  repositories:
+    - repository: terraform_modules
+      type: git # Same project: name: otherRepo. Another project in the same organization: name: otherProject/otherRepo
+      name: rpo-pvt-terraform-modules
+
+steps:
+  - checkout: self
+  - checkout: terraform_modules
+
+  - script: |
+      echo "This step will continue on error"
+      terraform --version -json
+      terraform init
+      terraform plan
+    displayName: Without AccessToken
+    workingDirectory: $(Build.SourcesDirectory)/prj-pvt-demos # location of the root module/working tf directory
+    continueOnError: true
+
+  - script: |
+      export GIT_CONFIG_PARAMETERS="'url.https://$SYSTEM_ACCESSTOKEN@dev.azure.com.insteadof=https://beetucosdemos@dev.azure.com'"
+      terraform --version -json
+      terraform init
+      terraform plan
+    env:
+      SYSTEM_ACCESSTOKEN: $(System.AccessToken)
+    displayName: With AccessToken
+    workingDirectory: $(Build.SourcesDirectory)/prj-pvt-demos # location of the root module/working tf directory
